@@ -1,0 +1,35 @@
+name: Run PySpark Preprocessing
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  preprocess:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Java (required for PySpark)
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Install dependencies
+        run: pip install pyspark pandas
+
+      - name: Upload MIMIC data
+        run: |
+          mkdir -p data/raw
+
+      - name: Run PySpark preprocessing
+        run: python data_pipeline/spark_preprocess.py
