@@ -1,0 +1,58 @@
+name: Train ML Model
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install pandas numpy scikit-learn mlflow joblib
+
+      - name: Generate sample data
+        run: |
+          mkdir -p data/processed
+          python - <<'EOF'
+          import pandas as pd
+          import numpy as np
+
+          np.random.seed(42)
+          n = 300
+
+          df = pd.DataFrame({
+              "hadm_id": range(1000, 1000+n),
+              "subject_id": np.random.randint(1, 50, n),
+              "age": np.random.randint(20, 90, n),
+              "gender_encoded": np.random.randint(0, 2, n),
+              "length_of_stay": np.random.randint(1, 30, n),
+              "num_diagnoses": np.random.randint(1, 20, n),
+              "num_prescriptions": np.random.randint(1, 30, n),
+              "is_emergency": np.random.randint(0, 2, n),
+              "prev_admissions": np.random.randint(0, 10, n),
+              "readmitted_30d": np.random.randint(0, 2, n)
+          })
+
+          df.to_csv("data/processed/features.csv", index=False)
+          print(f"Sample features generated: {df.shape}")
+          EOF
+
+      - name: Train models
+        run: python training/train.py
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models
+          path: training/models/
