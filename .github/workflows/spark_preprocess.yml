@@ -11,15 +11,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Set up Java (required for PySpark)
-        uses: actions/setup-java@v3
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -27,9 +27,46 @@ jobs:
       - name: Install dependencies
         run: pip install pyspark pandas
 
-      - name: Upload MIMIC data
+      - name: Generate sample data
         run: |
           mkdir -p data/raw
+          python - <<'EOF'
+          import pandas as pd
+          import numpy as np
+
+          np.random.seed(42)
+          n = 200
+
+          admissions = pd.DataFrame({
+              'hadm_id': range(1000, 1000+n),
+              'subject_id': np.random.randint(1, 50, n),
+              'admittime': pd.date_range('2150-01-01', periods=n, freq='3D'),
+              'dischtime': pd.date_range('2150-01-05', periods=n, freq='3D'),
+              'admission_type': np.random.choice(['EMERGENCY', 'ELECTIVE'], n)
+          })
+
+          patients = pd.DataFrame({
+              'subject_id': range(1, 50),
+              'dob': pd.date_range('2080-01-01', periods=49, freq='365D'),
+              'gender': np.random.choice(['M', 'F'], 49)
+          })
+
+          diagnoses = pd.DataFrame({
+              'hadm_id': np.random.randint(1000, 1000+n, 500),
+              'icd9_code': np.random.choice(['4019', '2724', '42731'], 500)
+          })
+
+          prescriptions = pd.DataFrame({
+              'hadm_id': np.random.randint(1000, 1000+n, 500),
+              'drug': np.random.choice(['Aspirin', 'Metformin', 'Lisinopril'], 500)
+          })
+
+          admissions.to_csv('data/raw/ADMISSIONS.csv', index=False)
+          patients.to_csv('data/raw/PATIENTS.csv', index=False)
+          diagnoses.to_csv('data/raw/DIAGNOSES_ICD.csv', index=False)
+          prescriptions.to_csv('data/raw/PRESCRIPTIONS.csv', index=False)
+          print("Sample data generated.")
+          EOF
 
       - name: Run PySpark preprocessing
         run: python data_pipeline/spark_preprocess.py
